@@ -79,7 +79,7 @@ type Schedule struct {
 	// command is used internally to store the actual command.
 	command Command
 
-	// once is used to call the commands finalizer.
+	// once is used to call the command's finalizer.
 	once sync.Once
 }
 
