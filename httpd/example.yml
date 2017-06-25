@@ -1,0 +1,84 @@
+scheduler:
+        type: ModbusTCP
+        address: "192.168.0.20:502"
+        bufferSize: 10
+        timeout: 20s
+        commands:
+                readData:
+                        type: readInputRegisters
+                        slaveId: 255
+                        address: 0
+                        quantity: 100
+                        repeat: yes
+                        onlyOnIdle: no
+                        minWait: 0s
+                        maxWait: 1s
+                writeData:
+                        type: writeMultipleRegisters
+                        slaveId: 255
+                        address: 100
+                        maxQuantity: 4
+                        repeat: no
+                        onlyOnIdle: no
+                        minWait: 0s
+                        maxWait: 1s
+
+httpd:
+        listenAddresses:
+                - "localhost:8181"
+                - "[::1]:8181"
+        locations:
+                - readData:
+                        path: "/api/readData"
+                        values:
+                                CNT_RM:
+                                        offset: 0
+                                        type: uint16
+                                Status:
+                                        offset: 1
+                                        type: bitfield
+                                        length: 16
+                                        bitmap:
+                                                - "AC contactor closed"
+                                                - "HVS awake"
+                                                - "DC contactor closed"
+                                                - ~
+                                                - ~
+                                                - ~
+                                                - ~
+                                                - ~
+                                                - "Balancing required"
+                                                - ~
+                                                - ~
+                                                - ~
+                                                - ~
+                                                - ~
+                                                - ~
+                                                - "Emergency operation active"
+                                ES_P_SP_RM:
+                                        offset: 2
+                                        type: int16
+                                        scaler: 10
+                                        unit: W
+                                ES_Emax_SP_RM:
+                                        offset: 3
+                                        type: uint16
+                                        scaler: 100
+                                        unit: W
+                - writeData:
+                        path: "/api/writeData"
+                        values:
+                                CNT:
+                                        offset: 0
+                                        type: uint16
+                                Commands:
+                                        offset: 1
+                                        type: uint16
+                                ES_P_SP:
+                                        offset: 2
+                                        type: int16
+                                        scale: 10
+                                ES_Emax_SP:
+                                        offset: 3
+                                        type: uint16
+                                        scale: 100
