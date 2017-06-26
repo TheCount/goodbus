@@ -61,17 +61,6 @@ func NewModbusTcpScheduler( scheduleBufferSize int, addr string, timeout time.Du
 	}
 }
 
-// AddReadInputRegisters adds a modbus read input registers command
-// to a running scheduler.
-// On success, it returns a channel with buffer size bufSize
-// yielding the read data.
-func ( s *Scheduler ) AddReadInputRegisters( name string, schedule sched.Schedule, bufSize int, slaveId byte, address uint16, quantity uint16 ) ( <-chan []byte, error ) {
-	command, resultChan := newReadInputRegisters( bufSize, s.handler, slaveId, address, quantity )
-	err := s.Scheduler.Add( name, command, schedule )
-
-	return resultChan, err
-}
-
 // Start starts the scheduler.
 // A channel reporting scheduler errors is returned.
 // The buffer size of this channel is given by error backlog.
@@ -108,6 +97,17 @@ func ( s *Scheduler ) WaitStop() {
 func ( s *Scheduler ) Stop() {
 	s.SignalStop()
 	s.WaitStop()
+}
+
+// AddReadInputRegisters adds a modbus read input registers command
+// to a running scheduler.
+// On success, it returns a channel with buffer size bufSize
+// yielding the read data.
+func ( s *Scheduler ) AddReadInputRegisters( name string, schedule sched.Schedule, bufSize int, slaveId byte, address uint16, quantity uint16 ) ( <-chan []byte, error ) {
+	command, resultChan := newReadInputRegisters( bufSize, s.handler, slaveId, address, quantity )
+	err := s.Scheduler.Add( name, command, schedule )
+
+	return resultChan, err
 }
 
 // AddReadHoldingRegisters adds a modbus read holding registers command
