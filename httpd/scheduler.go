@@ -36,8 +36,14 @@ const (
 	kBufferSize = "buffersize"
 	kCommands = "commands"
 	kDataBits = "databits"
+	kIdle = "onlyonidle"
+	kMaxWait = "maxwait"
+	kMinWait = "minwait"
 	kParity = "parity"
+	kQuantity = "quantity"
+	kRepeat = "repeat"
 	kScheduler = "scheduler"
+	kSlaveId = "slaveid"
 	kStopBits = "stopbits"
 	kTimeout = "timeout"
 	kType = "type"
@@ -49,8 +55,12 @@ const (
 	vModbusAscii = "ModbusASCII"
 	vModbusRTU = "ModbusRTU"
 	vModbusTCP = "ModbusTCP"
+	vReadHoldingRegisters = "readHoldingRegisters"
+	vReadInputRegisters = "readInputRegisters"
 	vSchedulerTimeout = 5 * time.Second
 	vSchedulerBufsize = 5
+	vWriteSingleRegister = "writeSingleRegister"
+	vWriteMultipleRegisters = "writeMultipleRegisters"
 )
 
 type scheduler struct {
@@ -162,6 +172,24 @@ func startEmptyScheduler( conf config ) ( *scheduler, error ) {
 	go watchSchedulerErrors( errChan )
 
 	return result, nil
+}
+
+// fillCommand fills in one configured command
+// for the scheduler.
+func ( s *scheduler ) fillCommand( name string, conf config ) error {
+	schedule, err := getScheduleConf( conf )
+	if err != nil {
+		return fmt.Errorf( "Unable to get schedule configuration for command '%s': %v", name, err )
+	}
+	slaveId, addr, err := getCommandAddress( conf )
+	if err != nil {
+		return fmt.Errorf( "Unable to get address information for command '%s': %v", name, err )
+	}
+	typeString, err := conf.GetString( kType )
+	if err != nil {
+		return fmt.Errorf( "Unable to get type of command '%s': %v", name, err )
+	}
+	// FIXME
 }
 
 // fillCommands fills in the configured commands
