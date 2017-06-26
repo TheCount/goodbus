@@ -17,7 +17,7 @@ scheduler:
                         type: writeMultipleRegisters
                         slaveId: 255
                         address: 100
-                        maxQuantity: 4
+                        quantity: 4
                         repeat: no
                         onlyOnIdle: no
                         minWait: 0s
