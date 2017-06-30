@@ -25,6 +25,7 @@ package main
 import(
 	"fmt"
 	"github.com/TheCount/goodbus/mbsched"
+	"github.com/TheCount/goodbus/sched"
 	"log"
 	"time"
 )
@@ -51,6 +52,9 @@ const (
 
 // configuration values
 const (
+	vDefaultMinWait = 0
+	vDefaultMaxWait = time.Second
+	vDefaultSlaveId = 255
 	vErrorBacklog = 5
 	vModbusAscii = "ModbusASCII"
 	vModbusRTU = "ModbusRTU"
@@ -63,8 +67,16 @@ const (
 	vWriteMultipleRegisters = "writeMultipleRegisters"
 )
 
+type commandConfig struct {
+	scratchpad *Scratchpad
+	launcher func() error // FIXME
+}
+
 type scheduler struct {
 	mbsched.Scheduler
+
+	// commandMap maps modbus command names to command configurations
+	commandMap map[string]*commandConfig
 }
 
 // getAddrTimeoutBufsizeConf gets configuration common to
@@ -174,6 +186,60 @@ func startEmptyScheduler( conf config ) ( *scheduler, error ) {
 	return result, nil
 }
 
+// getScheduleConf obtains the configuration for a schedule.
+func getScheduleConf( conf config ) ( *sched.Schedule, error ) {
+	repeat, err := conf.GetBoolOrDefault( kRepeat, false )
+	if err != nil {
+		return nil, fmt.Errorf( "Unable to read repeat setting: %v", err )
+	}
+	onlyOnIdle, err := conf.GetBoolOrDefault( kIdle, false )
+	if err != nil {
+		return nil, fmt.Errorf( "Unable to read idle setting: %v", err )
+	}
+	minWait, err := conf.GetDurationOrDefault( kMinWait, vDefaultMinWait )
+	if err != nil {
+		return nil, fmt.Errorf( "Unable to read minimum wait duration: %v", err )
+	}
+	maxWait, err := conf.GetDurationOrDefault( kMaxWait, vDefaultMaxWait )
+	if err != nil {
+		return nil, fmt.Errorf( "Unable to read maximum wait duration: %v", err )
+	}
+
+	result := &sched.Schedule{
+		MinWait: minWait,
+		MaxWait: maxWait,
+	}
+	if repeat {
+		result.Flags |= sched.ScheduleRepeat
+	}
+	if onlyOnIdle {
+		result.Flags |= sched.ScheduleIdle
+	}
+
+	return result, nil
+}
+
+// getCommandAddress obtains the address for a modbus command,
+// including the slave ID.
+func getCommandAddress( conf config ) ( uint8, uint16, error ) {
+	slaveId, err := conf.GetUInt8OrDefault( kSlaveId, vDefaultSlaveId )
+	if err != nil {
+		return 0, 0, fmt.Errorf( "Unable to read slave ID: %v", err )
+	}
+	address, err := conf.GetUInt16( kAddress )
+	if err != nil {
+		return 0, 0, fmt.Errorf( "Unable to read address: %v", err )
+	}
+
+	return slaveId, address, nil
+}
+
+func watchResultChan( scratchpad *Scratchpad, rChan <-chan []byte ) {
+	for result := range rChan {
+		scratchpad.Update( result )
+	}
+}
+
 // fillCommand fills in one configured command
 // for the scheduler.
 func ( s *scheduler ) fillCommand( name string, conf config ) error {
@@ -189,12 +255,101 @@ func ( s *scheduler ) fillCommand( name string, conf config ) error {
 	if err != nil {
 		return fmt.Errorf( "Unable to get type of command '%s': %v", name, err )
 	}
-	// FIXME
+	quantity, qErr := conf.GetUInt16( kQuantity )
+	cc := &commandConfig{
+		scratchpad: NewScratchpad(),
+		launcher: nil,
+	}
+	switch ( typeString ) {
+	case vReadHoldingRegisters:
+		if qErr != nil {
+			return fmt.Errorf( "read holding registers: %v", qErr )
+		}
+		rChan, err := s.AddReadHoldingRegisters( name, *schedule, vSchedulerBufsize, slaveId, addr, quantity )
+		if err != nil {
+			return fmt.Errorf( "Unable to create read holding registers schedule: %v", err )
+		}
+		go watchResultChan( cc.scratchpad, rChan )
+	case vReadInputRegisters:
+		if qErr != nil {
+			return fmt.Errorf( "read input registers: %v", qErr )
+		}
+		rChan, err := s.AddReadInputRegisters( name, *schedule, vSchedulerBufsize, slaveId, addr, quantity )
+		if err != nil {
+			return fmt.Errorf( "Unable to create read input registers schedule: %v", err )
+		}
+		go watchResultChan( cc.scratchpad, rChan )
+	case vWriteSingleRegister:
+		if schedule.Flags & sched.ScheduleRepeat != 0 {
+			return fmt.Errorf( "Repeat '%s' not supported for write single register", name )
+		}
+		cc.launcher = func() error {
+			_, data := cc.scratchpad.Get()
+			if data == nil {
+				log.Panicf( "Internal error: data for '%s' not set", name )
+			}
+			if len( data ) < 2 {
+				log.Panicf( "Internal error: data for '%s' too short", name )
+			}
+			rChan, err := s.AddWriteSingleRegister( name, *schedule, vSchedulerBufsize, slaveId, addr, ( uint16( data[0] ) << 8 ) | uint16( data[1] ) )
+			if err != nil {
+				return fmt.Errorf( "Unable to add write single register command: %v", err )
+			}
+			result, ok := <-rChan
+			if !ok {
+				return fmt.Errorf( "No data from result channel for '%s'", name )
+			}
+			cc.scratchpad.Update( result )
+			_, ok = <-rChan
+			if ok {
+				return fmt.Errorf( "Result channel did not close fo '%s'", name )
+			}
+
+			return nil
+		}
+	case vWriteMultipleRegisters:
+		if qErr != nil {
+			return fmt.Errorf( "write multiple registers: %v", qErr )
+		}
+		if schedule.Flags & sched.ScheduleRepeat != 0 {
+			return fmt.Errorf( "Repeat '%s' not supported for write multiple registers", name )
+		}
+		cc.launcher = func() error {
+			_, data := cc.scratchpad.Get()
+			if data == nil {
+				log.Panicf( "Internal error: data for '%s' not set", name )
+			}
+			if quantity > 256 || len( data ) < 2 * int( quantity ) {
+				log.Panicf( "Internal error: data for '%s' too short", name )
+			}
+			rChan, err := s.AddWriteMultipleRegisters( name, *schedule, vSchedulerBufsize, slaveId, addr, quantity, data )
+			if err != nil {
+				return fmt.Errorf( "Unable to add write multiple registers command: %v", err )
+			}
+			result, ok := <-rChan
+			if !ok {
+				return fmt.Errorf( "No data from result channel for '%s'", name )
+			}
+			cc.scratchpad.Update( result )
+			_, ok = <-rChan
+			if ok {
+				return fmt.Errorf( "Result channel did not close fo '%s'", name )
+			}
+
+			return nil
+		}
+	default:
+		return fmt.Errorf( "Modbus command type '%s' not supported", typeString )
+	}
+	s.commandMap[name] = cc
+
+	return nil
 }
 
 // fillCommands fills in the configured commands
 // for the scheduler.
 func ( s *scheduler ) fillCommands( conf config ) error {
+	s.commandMap = make( map[string]*commandConfig )
 	for name, _ := range conf {
 		commandConf, err := conf.GetSubConfig( name )
 		if err != nil {
