@@ -61,6 +61,21 @@ func ( c config ) GetSubConfig( name string ) ( config, error ) {
 	return result, nil
 }
 
+// GetBoolOrDefault gets a boolean value from the config,
+// or a default value.
+func ( c config ) GetBoolOrDefault( name string, dflt bool ) ( bool, error ) {
+	item, ok := c[name]
+	if !ok {
+		return dflt, nil
+	}
+	result, ok := item.( bool )
+	if !ok {
+		return false, fmt.Errorf( "Item '%s' is not a boolean", name )
+	}
+
+	return result, nil
+}
+
 // GetInt gets an integer from a config.
 func ( c config ) GetInt( name string ) ( int, error ) {
 	item, ok := c[name]
@@ -84,6 +99,35 @@ func ( c config ) GetIntOrDefault( name string, dflt int ) ( int, error ) {
 	result, err := cast.ToIntE( item )
 	if err != nil {
 		return 0, fmt.Errorf( "Item '%s' is not an integer", name );
+	}
+
+	return result, nil
+}
+
+// GetUInt8OrDefault gets an unsigned 8-bit integer
+// or a default value from a config.
+func ( c config ) GetUInt8OrDefault( name string, dflt uint8 ) ( uint8, error ) {
+	item, ok := c[name]
+	if !ok {
+		return dflt, nil
+	}
+	result, err := cast.ToUint8E( item )
+	if err != nil {
+		return 0, fmt.Errorf( "Item '%s' is not an unsigned 8-bit integer", name );
+	}
+
+	return result, nil
+}
+
+// GetUInt16 gets an unsigned 16-bit integer from a config.
+func ( c config ) GetUInt16( name string ) ( uint16, error ) {
+	item, ok := c[name]
+	if !ok {
+		return 0, fmt.Errorf( "Unsigned 16-bit integer '%s' not found", name )
+	}
+	result, err := cast.ToUint16E( item )
+	if err != nil {
+		return 0, fmt.Errorf( "Item '%s' is not an unsigned 16-bit integer", name )
 	}
 
 	return result, nil
