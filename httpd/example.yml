@@ -28,7 +28,7 @@ httpd:
                 - "localhost:8181"
                 - "[::1]:8181"
         locations:
-                - readData:
+                readData:
                         path: "/api/readData"
                         values:
                                 CNT_RM:
@@ -65,7 +65,7 @@ httpd:
                                         type: uint16
                                         scaler: 100
                                         unit: W
-                - writeData:
+                writeData:
                         path: "/api/writeData"
                         values:
                                 CNT:
