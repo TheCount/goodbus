@@ -69,7 +69,10 @@ const (
 
 type commandConfig struct {
 	scratchpad *Scratchpad
-	launcher func() error // FIXME
+
+	// Command launcher for one-shot commands.
+	// Nil for repeated commands.
+	launcher func() error
 }
 
 type scheduler struct {
