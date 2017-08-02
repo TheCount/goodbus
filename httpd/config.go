@@ -32,6 +32,7 @@ import(
 )
 
 type config map[string]interface{}
+type configList []interface{}
 
 // getConfig reads in the configuration
 // from the file name provided on the command line.
@@ -56,6 +57,20 @@ func ( c config ) GetSubConfig( name string ) ( config, error ) {
 	result, ok := item.( config )
 	if !ok {
 		return nil, fmt.Errorf( "Item '%s' is not a subconfiguration", name )
+	}
+
+	return result, nil
+}
+
+// GetList gets a configuration list.
+func ( c config ) GetList( name string ) ( configList, error ) {
+	item, ok := c[name]
+	if !ok {
+		return nil, fmt.Errorf( "List '%s' not found", name )
+	}
+	result, ok := item.( configList )
+	if !ok {
+		return nil, fmt.Errorf( "Item '%s' is not a list", name )
 	}
 
 	return result, nil
