@@ -27,6 +27,7 @@ httpd:
         listenAddresses:
                 - "localhost:8181"
                 - "[::1]:8181"
+        timeout: 10s
         locations:
                 readData:
                         path: "/api/readData"
