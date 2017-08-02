@@ -167,14 +167,20 @@ func startEmptyScheduler( conf config ) ( *scheduler, error ) {
 		if serialErr != nil {
 			return nil, serialErr
 		}
-		result.Scheduler = *mbsched.NewModbusAsciiScheduler( bufsize, addr, baudRate, dataBits, parity, stopBits, timeout )
+		result = &scheduler{
+			Scheduler: *mbsched.NewModbusAsciiScheduler( bufsize, addr, baudRate, dataBits, parity, stopBits, timeout ),
+		}
 	case vModbusRTU:
 		if serialErr != nil {
 			return nil, serialErr
 		}
-		result.Scheduler = *mbsched.NewModbusRtuScheduler( bufsize, addr, baudRate, dataBits, parity, stopBits, timeout )
+		result = &scheduler{
+			Scheduler: *mbsched.NewModbusRtuScheduler( bufsize, addr, baudRate, dataBits, parity, stopBits, timeout ),
+		}
 	case vModbusTCP:
-		result.Scheduler = *mbsched.NewModbusTcpScheduler( bufsize, addr, timeout )
+		result = &scheduler{
+			Scheduler: *mbsched.NewModbusTcpScheduler( bufsize, addr, timeout ),
+		}
 	default:
 		return nil, fmt.Errorf( "Unknown scheduler type: %s", schedType )
 	}
