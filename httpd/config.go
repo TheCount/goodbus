@@ -54,12 +54,12 @@ func ( c config ) GetSubConfig( name string ) ( config, error ) {
 	if !ok {
 		return nil, fmt.Errorf( "Subconfiguration '%s' not found", name )
 	}
-	result, ok := item.( config )
+	result, ok := item.( map[string]interface{} )
 	if !ok {
 		return nil, fmt.Errorf( "Item '%s' is not a subconfiguration", name )
 	}
 
-	return result, nil
+	return config( result ), nil
 }
 
 // GetList gets a configuration list.
@@ -68,12 +68,12 @@ func ( c config ) GetList( name string ) ( configList, error ) {
 	if !ok {
 		return nil, fmt.Errorf( "List '%s' not found", name )
 	}
-	result, ok := item.( configList )
+	result, ok := item.( []interface{} )
 	if !ok {
 		return nil, fmt.Errorf( "Item '%s' is not a list", name )
 	}
 
-	return result, nil
+	return configList( result ), nil
 }
 
 // GetBoolOrDefault gets a boolean value from the config,
