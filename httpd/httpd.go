@@ -42,14 +42,25 @@ const(
 	kValues = "values"
 )
 
-// handler for HTTP requests
+// handler is a generic handler for HTTP requests
 type handler struct {
 	cc *commandConfig
 	values config
 }
 
-// ServeHTTP processes a request
-func ( h handler ) ServeHTTP( w http.ResponseWriter, r *http.Request ) {
+// readHandler is a handler for HTTP requests pertaining to modbus read commands
+type readHandler handler
+
+// ServeHTTP processes a request pertaining to a modbus read command
+func ( h readHandler ) ServeHTTP( w http.ResponseWriter, r *http.Request ) {
+	// FIXME
+}
+
+// writeHandler is a handler for HTTP requests pertaining to modbus write commands
+type writeHandler handler
+
+// ServeHTTP processes a request pertaining to a modbus write command
+func ( h writeHandler ) ServeHTTP( w http.ResponseWriter, r *http.Request ) {
 	// FIXME
 }
 
@@ -63,7 +74,12 @@ func setHandler( locConf config, cc *commandConfig ) error {
 	if err != nil {
 		return fmt.Errorf( "Unable to extract values: %v", err )
 	}
-	http.Handle( path, handler{ cc, values } )
+	h := handler{ cc, values }
+	if cc.IsReadCommand() {
+		http.Handle( path, readHandler( h ) )
+	} else {
+		http.Handle( path, writeHandler( h ) )
+	}
 
 	return nil
 }

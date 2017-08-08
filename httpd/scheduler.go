@@ -75,6 +75,14 @@ type commandConfig struct {
 	launcher func() error
 }
 
+// IsReadCommand returns true if and only if the underlying modbus command
+// is one of the read commands.
+func ( c *commandConfig ) IsReadCommand() bool {
+	// Right now, read command status is equivalent with there not being a launcher.
+	// This might change in the future, though.
+	return c.launcher == nil
+}
+
 type scheduler struct {
 	mbsched.Scheduler
 
