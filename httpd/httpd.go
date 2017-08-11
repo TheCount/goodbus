@@ -23,6 +23,7 @@ SOFTWARE.
 package main
 
 import(
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -53,7 +54,34 @@ type readHandler handler
 
 // ServeHTTP processes a request pertaining to a modbus read command
 func ( h readHandler ) ServeHTTP( w http.ResponseWriter, r *http.Request ) {
-	// FIXME
+	if r.Method != http.MethodGet {
+		w.WriteHeader( http.StatusMethodNotAllowed )
+		return
+	}
+	time, data := h.cc.scratchpad.Get()
+	if data == nil {
+		w.WriteHeader( http.StatusNoContent )
+		return
+	}
+	obj, err := buildObject( time, data, h.values )
+	if err != nil {
+		w.WriteHeader( http.StatusInternalServerError )
+		_, err2 := fmt.Fprintf( w, "Cannot build response object: %v", err )
+		if err2 != nil {
+			log.Printf( "Error writing error message '%v' to client: %v", err, err2 )
+		}
+		return
+	}
+	blob, err := json.Marshal( obj )
+	if err != nil {
+		w.WriteHeader( http.StatusInternalServerError )
+		log.Printf( "Error marshalling JSON (this should not happen): %v", err )
+		return
+	}
+	_, err = w.Write( blob )
+	if err != nil {
+		log.Printf( "Error writing JSON data to client: %v", err )
+	}
 }
 
 // writeHandler is a handler for HTTP requests pertaining to modbus write commands
@@ -61,7 +89,30 @@ type writeHandler handler
 
 // ServeHTTP processes a request pertaining to a modbus write command
 func ( h writeHandler ) ServeHTTP( w http.ResponseWriter, r *http.Request ) {
-	// FIXME
+	if r.Method != http.MethodPost {
+		w.WriteHeader( http.StatusMethodNotAllowed )
+		return
+	}
+	data, err := buildData( r.Body, h.values )
+	if err != nil {
+		w.WriteHeader( http.StatusBadRequest )
+		_, err2 := fmt.Fprintf( w, "Unable to decode JSON data: %v", err )
+		if err2 != nil {
+			log.Printf( "Unable to relay data building error message: %v", err2 )
+		}
+		return
+	}
+	h.cc.scratchpad.Update( data )
+	err = h.cc.launcher()
+	if err != nil {
+		w.WriteHeader( http.StatusInternalServerError )
+		_, err2 := fmt.Fprintf( w, "Unable to launch command: %v", err )
+		if err2 != nil {
+			log.Printf( "Unable to relay command execution error message: %v", err2 )
+		}
+		return
+	}
+	w.WriteHeader( http.StatusOK )
 }
 
 // setHandler sets the http handler for one location
