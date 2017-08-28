@@ -350,7 +350,7 @@ func ( s *scheduler ) fillCommand( name string, conf config ) error {
 			cc.scratchpad.Update( result )
 			_, ok = <-rChan
 			if ok {
-				return fmt.Errorf( "Result channel did not close fo '%s'", name )
+				return fmt.Errorf( "Result channel did not close for '%s'", name )
 			}
 
 			return nil
