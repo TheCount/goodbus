@@ -119,6 +119,20 @@ func ( c config ) GetIntOrDefault( name string, dflt int ) ( int, error ) {
 	return result, nil
 }
 
+// GetUInt gets an unsigned integer from a config.
+func ( c config ) GetUInt( name string ) ( uint, error ) {
+	item, ok := c[name]
+	if !ok {
+		return 0, fmt.Errorf( "Unsigned integer '%s' not found", name )
+	}
+	result, err := cast.ToUintE( item )
+	if err != nil {
+		return 0, fmt.Errorf( "Item '%s' is not an unsigned integer", name );
+	}
+
+	return result, nil
+}
+
 // GetUInt8OrDefault gets an unsigned 8-bit integer
 // or a default value from a config.
 func ( c config ) GetUInt8OrDefault( name string, dflt uint8 ) ( uint8, error ) {
