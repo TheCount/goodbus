@@ -284,7 +284,7 @@ func ( s *scheduler ) fillCommand( name string, conf config ) error {
 		return fmt.Errorf( "Register quantity %v out of bounds for command '%s'", quantity, name )
 	}
 	cc := &commandConfig{
-		scratchpad: NewScratchpad(),
+		scratchpad: NewScratchpad( 2 * int( quantity ) ),
 		launcher: nil,
 	}
 	switch ( typeString ) {

@@ -93,7 +93,7 @@ func ( h writeHandler ) ServeHTTP( w http.ResponseWriter, r *http.Request ) {
 		w.WriteHeader( http.StatusMethodNotAllowed )
 		return
 	}
-	data, err := buildData( r.Body, h.values )
+	data, err := buildData( r.Body, h.values, h.cc.scratchpad.Size )
 	if err != nil {
 		w.WriteHeader( http.StatusBadRequest )
 		_, err2 := fmt.Fprintf( w, "Unable to decode JSON data: %v", err )
@@ -102,7 +102,11 @@ func ( h writeHandler ) ServeHTTP( w http.ResponseWriter, r *http.Request ) {
 		}
 		return
 	}
-	h.cc.scratchpad.Update( data )
+	err = h.cc.scratchpad.Update( data )
+	if ( err != nil ) {
+		// This should not happen
+		panic( err )
+	}
 	err = h.cc.launcher()
 	if err != nil {
 		w.WriteHeader( http.StatusInternalServerError )

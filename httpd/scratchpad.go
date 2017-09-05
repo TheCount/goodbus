@@ -23,6 +23,7 @@ SOFTWARE.
 package main
 
 import(
+	"fmt"
 	"sync/atomic"
 	"time"
 )
@@ -37,19 +38,29 @@ type scratchpadType struct {
 
 type Scratchpad struct {
 	atomic.Value
+
+	// Size is the immutable size the scratchpad data should have
+	Size int
 }
 
-func NewScratchpad() *Scratchpad {
+// NewScratchpad creates a new scratchpad with the supposed size.
+func NewScratchpad( size int ) *Scratchpad {
 	return &Scratchpad{
+		Size: size,
 	}
 }
 
-func ( sp *Scratchpad ) Update( data []byte ) {
+func ( sp *Scratchpad ) Update( data []byte ) error {
+	if len( data ) != sp.Size {
+		return fmt.Errorf( "Expected scratchpad data size of %v, got %v", sp.Size, len( data ) )
+	}
 	newvalue := scratchpadType{
 		Time: time.Now(),
 		Data: data,
 	}
 	sp.Value.Store( newvalue )
+
+	return nil
 }
 
 func ( sp *Scratchpad ) Get() ( time.Time, []byte ) {
