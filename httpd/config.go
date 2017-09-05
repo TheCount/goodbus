@@ -162,6 +162,21 @@ func ( c config ) GetUInt16( name string ) ( uint16, error ) {
 	return result, nil
 }
 
+// GetFloatOrDefault gets a 64-bit float
+// or a default value from a config.
+func ( c config ) GetFloatOrDefault( name string, dflt float64 ) ( float64, error ) {
+	item, ok := c[name]
+	if !ok {
+		return dflt, nil
+	}
+	result, err := cast.ToFloat64E( item )
+	if err != nil {
+		return 0, fmt.Errorf( "Item '%s' is not a 64-bit float", name );
+	}
+
+	return result, nil
+}
+
 // GetString gets a string from a config.
 func ( c config ) GetString( name string ) ( string, error ) {
 	item, ok := c[name]
