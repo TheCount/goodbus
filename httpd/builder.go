@@ -154,12 +154,12 @@ func buildValue( data []byte, valueConf config ) ( builder.Object, error ) {
 		delete( conf, kLength )
 		size = ( length + 7 ) / 8 // size = length in bits as bytes, rounded up
 	}
-	if uint( len( data ) ) < offset + size {
+	if uint( len( data ) ) < 2 * offset + size {
 		return nil, fmt.Errorf( "Offset %v and/or size %v out of bounds (data length: %v)", offset, size, len( data ) )
 	}
 
 	// Create and return result
-	result, err := info.build( data[offset:offset + size], conf, length )
+	result, err := info.build( data[2 * offset : 2 * offset + size], conf, length )
 	if err != nil {
 		return nil, fmt.Errorf( "Unable to build value: %v", err )
 	}
