@@ -67,6 +67,13 @@ const (
 	vWriteMultipleRegisters = "writeMultipleRegisters"
 )
 
+// Constants
+const(
+	// Upper maximum quantity of registers in modbus commands.
+	// Actual maximum allowed quantity may be smaller depending on command.
+	MaxModbusQuantity = 255
+)
+
 type commandConfig struct {
 	scratchpad *Scratchpad
 
@@ -273,6 +280,9 @@ func ( s *scheduler ) fillCommand( name string, conf config ) error {
 		return fmt.Errorf( "Unable to get type of command '%s': %v", name, err )
 	}
 	quantity, qErr := conf.GetUInt16( kQuantity )
+	if ( quantity > MaxModbusQuantity ) {
+		return fmt.Errorf( "Register quantity %v out of bounds for command '%s'", quantity, name )
+	}
 	cc := &commandConfig{
 		scratchpad: NewScratchpad(),
 		launcher: nil,
