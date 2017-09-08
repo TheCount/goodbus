@@ -41,21 +41,9 @@ const(
 	kValue = "value"
 )
 
-// TypeInfo carries information about the types supported
-type typeInfo struct {
-	// size is the size of the type in bytes.
-	// A value of zero means variable size.
-	size uint
-
-	// build builds a value for the type
-	build func( data []byte, conf config, length uint ) ( builder.Dict, error )
-}
-
-var typeInfoMap = map[string]typeInfo{
-	kBitfield: { 0, buildBitfield },
-	kInt16: { 2, buildInt16 },
-	kUInt16: { 2, buildUInt16 },
-}
+// buildFunc is a function type for functions that build values
+// from binary data and configurations.
+type buildFunc func( data []byte, conf config ) ( builder.Dict, error )
 
 // buildBitfield builds a value for a bitfield
 func buildBitfield( data []byte, conf config, length uint ) ( builder.Dict, error ) {
@@ -119,47 +107,75 @@ func buildUInt16( data []byte, conf config, unused uint ) ( builder.Dict, error 
 	return result, nil
 }
 
-// buildValue builds a single value dictionary
-func buildValue( data []byte, valueConf config ) ( builder.Object, error ) {
-	// copy config first because we're going to alter it
-	conf := make( config )
-	for key, value := range valueConf {
-		conf[key] = value
+// extractInfo extracts offset and type information from a values configuration
+func extractInfo( conf config ) ( uint, uint, buildFunc, error ) {
+	// TypeInfo carries information about the types supported
+	type typeInfo struct {
+		// size is the size of the type in bytes.
+		// A value of zero means variable size.
+		size uint
+
+		// build builds a value for the type
+		build func( data []byte, conf config, length uint ) ( builder.Dict, error )
 	}
 
-	// Extract type info
+	var typeInfoMap = map[string]typeInfo{
+		kBitfield: { 0, buildBitfield },
+		kInt16: { 2, buildInt16 },
+		kUInt16: { 2, buildUInt16 },
+	}
+
 	offset, err := conf.GetUInt( kOffset )
 	if err != nil {
-		return nil, fmt.Errorf( "Unable to extract offset: %v", err )
+		return 0, 0, nil, fmt.Errorf( "Unable to extract offset: %v", err )
 	}
 	typ, err := conf.GetString( kType )
 	if err != nil {
-		return nil, fmt.Errorf( "Unable to extract type: %v", err )
+		return 0, 0, nil, fmt.Errorf( "Unable to extract type: %v", err )
 	}
-	delete( conf, kOffset )
-	delete( conf, kType )
 
 	// check validity of type/offset
 	info, ok := typeInfoMap[typ]
 	if !ok {
-		return nil, fmt.Errorf( "Unknown type '%v'", typ )
+		return 0, 0, nil, fmt.Errorf( "Unknown type '%v'", typ )
 	}
 	var length uint
 	size := info.size
 	if size == 0 {
 		length, err = conf.GetUInt( kLength )
 		if err != nil {
-			return nil, fmt.Errorf( "Unable to extract mandatory length for type '%v': %v", typ, err )
+			return 0, 0, nil, fmt.Errorf( "Unable to extract mandatory length for type '%v': %v", typ, err )
 		}
-		delete( conf, kLength )
 		size = ( length + 7 ) / 8 // size = length in bits as bytes, rounded up
 	}
+
+	return offset, size, func( data []byte, conf config ) ( builder.Dict, error ) {
+		return info.build( data, conf, length )
+	}, nil
+}
+
+// buildValue builds a single value dictionary
+func buildValue( data []byte, valueConf config ) ( builder.Object, error ) {
+	// get info
+	offset, size, build, err := extractInfo( valueConf );
+	if err != nil {
+		return nil, fmt.Errorf( "Unable to extract info from config: %v", err )
+	}
+
+	// create altered config
+	conf := make( config )
+	for key, value := range valueConf {
+		conf[key] = value
+	}
+	delete( conf, kOffset )
+	delete( conf, kType )
+	delete( conf, kLength )
+
+	// Create and return result
 	if uint( len( data ) ) < 2 * offset + size {
 		return nil, fmt.Errorf( "Offset %v and/or size %v out of bounds (data length: %v)", offset, size, len( data ) )
 	}
-
-	// Create and return result
-	result, err := info.build( data[2 * offset : 2 * offset + size], conf, length )
+	result, err := build( data[2 * offset : 2 * offset + size], conf )
 	if err != nil {
 		return nil, fmt.Errorf( "Unable to build value: %v", err )
 	}
