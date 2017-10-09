@@ -22,6 +22,73 @@ SOFTWARE.
 
 package builder
 
+import(
+	"encoding/json"
+	"errors"
+	"fmt"
+	"strconv"
+)
+
 // Generic builder object
 type Object interface {
+}
+
+// objectFromJSON constructs an object from a JSON value
+func objectFromJSON( decoder *json.Decoder ) ( Object, error ) {
+	var result Object
+	token, err := decoder.Token()
+	if err != nil {
+		return nil, fmt.Errorf( "Unable to obtain JSON token while constructing object: %v", err )
+	}
+	switch x := token.( type ) {
+	case json.Delim:
+		if x == '[' {
+			result, err = arrayFromJSON( decoder )
+		} else if x == '{' {
+			result, err = dictFromJSON( decoder )
+		} else {
+			// should not happen
+			return nil, fmt.Errorf( "Bad delimiter: %v", x )
+		}
+		if err != nil {
+			return nil, fmt.Errorf( "Unable to construct compound object from JSON: %v", err )
+		}
+		token, err = decoder.Token()
+		if err != nil {
+			return nil, fmt.Errorf( "Unable to get closing JSON delimiter for compound object: %v", err )
+		}
+		y, ok := token.( json.Delim )
+		if !ok {
+			// should not happen
+			return nil, errors.New( "Undelimited compound object" )
+		}
+		if ( x == '[' && y != ']' ) || ( x == '{' && y != '}' ) {
+			// should not happen
+			return nil, errors.New( "Badly delimited compound object" )
+		}
+		return result, nil
+	case bool:
+		return Bool( x ), nil
+	case json.Number:
+		signed, err := x.Int64()
+		if err == nil {
+			return Int( signed ), nil
+		}
+		unsigned, err := strconv.ParseUint( string( x ), 10, 64 )
+		if err == nil {
+			return UInt( unsigned ), nil
+		}
+		flt, err := x.Float64()
+		if err == nil {
+			return Float( flt ), nil
+		}
+		return nil, fmt.Errorf( "Unable to parse number: %v", x )
+	case string:
+		return String( x ), nil
+	case nil:
+		return nil, nil
+	default:
+		// Should not happen
+		return nil, fmt.Errorf( "Invalid token: %v", token )
+	}
 }
