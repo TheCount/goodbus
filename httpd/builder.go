@@ -388,7 +388,7 @@ func buildData( r io.Reader, valueConf config, size int ) ( []byte, error ) {
 	if err != nil {
 		return nil, fmt.Errorf( "Unable to build object: %v", err );
 	}
-	dict, ok := obj.( *builder.Dict )
+	dict, ok := obj.( builder.Dict )
 	if !ok {
 		return nil, errors.New( "Not a JSON object" )
 	}
