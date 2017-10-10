@@ -22,10 +22,41 @@ SOFTWARE.
 
 package builder
 
+import(
+	"encoding/json"
+	"fmt"
+)
+
 // Dict is the builder dictionary type
 type Dict map[string]Object
 
 // NewDict creates a new dictionary
 func NewDict() Dict {
 	return make( Dict )
+}
+
+// dictFromJSON constructs a dictionary from a JSON object
+func dictFromJSON( decoder *json.Decoder ) ( Dict, error ) {
+	result := NewDict()
+	for decoder.More() {
+		token, err := decoder.Token()
+		if err != nil {
+			return nil, fmt.Errorf( "Unable to parse dictionary key from JSON: %v", err )
+		}
+		key, ok := token.( string )
+		if !ok {
+			return nil, fmt.Errorf( "Dictionary key '%v' should be a string", token )
+		}
+		_, ok = result[key]
+		if ok {
+			return nil, fmt.Errorf( "Duplicate dictionary key '%v'", key )
+		}
+		value, err := objectFromJSON( decoder )
+		if err != nil {
+			return nil, fmt.Errorf( "Unable to parse dictionary value for key '%v' from JSON: %v", key, err )
+		}
+		result[key] = value
+	}
+
+	return result, nil
 }
