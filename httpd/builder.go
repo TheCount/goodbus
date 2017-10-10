@@ -199,9 +199,9 @@ func serialiseInt16( data []byte, value builder.Object, conf config, unused uint
 	}
 	var intv int16
 	if scaled >= 0 {
-		intv := int16( scaled + 0.5 )
+		intv = int16( scaled + 0.5 )
 	} else {
-		intv := int16( scaled - 0.5 )
+		intv = int16( scaled - 0.5 )
 	}
 	uintv := uint16( intv )
 	data[0] = byte( uintv >> 8 )
